@@ -452,6 +452,39 @@ const css = `
   .tm-result h3 { font-family:'Lora',serif;font-size:24px;color:var(--dark);margin-bottom:10px; }
   .tm-result p { font-size:14px;color:var(--mid);line-height:1.6;margin-bottom:20px; }
 
+  /* ── Test de personalidad (OCEAN) ───────────────────────────────── */
+  .tp-card { background:white;border:1px solid var(--warm);border-radius:24px;padding:36px;max-width:660px;box-shadow:0 8px 30px rgba(44,36,32,.05);animation:fadeUp .4s ease both; }
+  .tp-eyebrow { font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--soft);margin-bottom:14px;font-weight:500; }
+  .tp-big-icon { width:64px;height:64px;border-radius:20px;background:rgba(193,122,90,.12);display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:18px; }
+  .tp-title { font-family:'Lora',serif;font-size:28px;line-height:1.25;color:var(--dark);margin-bottom:12px; }
+  .tp-text { font-size:15px;line-height:1.65;color:var(--mid);margin-bottom:18px; }
+  .tp-box { background:var(--cream);border-radius:16px;padding:16px 18px;margin-bottom:14px; }
+  .tp-box strong { display:block;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--terra);margin-bottom:6px;font-weight:600; }
+  .tp-box p { font-size:14px;line-height:1.6;color:var(--mid); }
+  .tp-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-bottom:24px; }
+  .tp-mini { background:white;border:1px solid var(--warm);border-radius:18px;padding:18px; }
+  .tp-mini .tp-mini-icon { font-size:24px;margin-bottom:8px; }
+  .tp-mini h4 { font-family:'Lora',serif;font-size:16px;color:var(--dark);margin-bottom:4px; }
+  .tp-mini p { font-size:13px;line-height:1.5;color:var(--mid); }
+  .tp-opts { display:flex;flex-direction:column;gap:8px;margin:20px 0 24px; }
+  .tp-foot { display:flex;justify-content:space-between;align-items:center;gap:12px; }
+  .tp-res-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin:24px 0; }
+  .tp-res { background:white;border:1px solid var(--warm);border-radius:20px;padding:22px; }
+  .tp-res-head { display:flex;align-items:center;gap:12px;margin-bottom:14px; }
+  .tp-res-head .tp-res-icon { width:42px;height:42px;border-radius:14px;background:rgba(193,122,90,.12);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0; }
+  .tp-res-name { font-family:'Lora',serif;font-size:17px;color:var(--dark); }
+  .tp-res-level { font-size:12px;color:var(--soft); }
+  .tp-res-score { margin-left:auto;font-family:'Lora',serif;font-size:26px;color:var(--terra); }
+  .tp-bar { height:7px;background:var(--warm);border-radius:100px;overflow:hidden;margin-bottom:14px; }
+  .tp-bar > div { height:100%;background:var(--terra);border-radius:100px;transition:width .8s ease; }
+  .tp-res p { font-size:13.5px;line-height:1.6;color:var(--mid); }
+  .tp-note { font-size:12px;color:var(--soft);line-height:1.6;max-width:660px; }
+  @media (max-width:768px) {
+    .tp-card { padding:24px 20px;border-radius:20px; }
+    .tp-title { font-size:23px; }
+    .tp-res-grid { grid-template-columns:1fr; }
+  }
+
   /* ── TABLET adjustments ─────────────────────────────────────────── */
   @media (min-width: 769px) and (max-width: 1024px) {
     .dashboard { grid-template-columns:220px 1fr; }
@@ -476,6 +509,19 @@ const DEMO_MATCHES = [
   { id:2, name:"Sofía",     age:22, ocean_o:74, ocean_c:36, ocean_e:32, ocean_a:70, ocean_n:68, avatar:"🎵", bg:"#F4EEE8", reason:"Ambas valoran las conversaciones profundas sobre las superficiales",   compat:82, msgs:[{id:1,type:"recv",text:"¿Cuál fue el último libro que te cambió algo?",time:"Ayer"}],  depth:"Nivel 1", unread:true },
   { id:3, name:"Camila",    age:25, ocean_o:70, ocean_c:72, ocean_e:24, ocean_a:60, ocean_n:74, avatar:"🌙", bg:"#EEE8F4", reason:"Comparten esa sensación de observar antes de participar en grupos",    compat:79, msgs:[], depth:"Nuevo", unread:false },
   { id:4, name:"Isidora",   age:23, ocean_o:72, ocean_c:74, ocean_e:20, ocean_a:70, ocean_n:24, avatar:"☕", bg:"#F4F0E8", reason:"Las dos prefieren una conversación lenta a un montón de mensajes rápidos", compat:76, msgs:[], depth:"Nuevo", unread:false },
+];
+
+// Match hardcodeado SOLO para probar el chat (poner SHOW_TEST_MATCH en false para quitarlo)
+const SHOW_TEST_MATCH = true;
+const TEST_MATCH = {
+  id:"test-match", matchId:null, name:"Valentina (prueba)", avatar:"🌿", bg:"#E8F4E8", depth:"Chat de prueba",
+  msgs:[{ id:1, type:"recv", text:"¡Hola! Este es un chat de prueba para ver cómo se ve la conversación 🌿", time:"10:24" }],
+};
+const TEST_REPLIES = [
+  "Qué buena pregunta, déjame pensarlo 🤔",
+  "Jaja me pasa lo mismo, cuéntame más",
+  "Eso me dice mucho de ti 🌿",
+  "¿Y cómo fue eso para ti?",
 ];
 
 const DEMO_SCRIPT = [
@@ -545,6 +591,243 @@ function AffinityTestModal({ me, target, onSaveMe, onClose, onConnect }) {
         )}
       </div>
     </div>
+  );
+}
+
+// ─── Test de personalidad OCEAN (Big Five) ───────────────────────────────────
+const BIG5_TRAITS = [
+  { key:"O", icon:"🌌", name:"Apertura a la experiencia",
+    measures:"Qué tan curioso/a, creativo/a y abierto/a eres frente a ideas y experiencias nuevas.",
+    example:"Probar cosas nuevas, imaginar posibilidades, cuestionar lo establecido.",
+    low:"Prefieres lo conocido, lo práctico y lo que ya funciona.",
+    mid:"Equilibras la novedad con la rutina según el momento.",
+    high:"Eres curioso/a e imaginativo/a, y disfrutas explorar ideas y lugares nuevos." },
+  { key:"C", icon:"🧭", name:"Responsabilidad",
+    measures:"Cuánto orden, disciplina y constancia pones para cumplir lo que te propones.",
+    example:"Planificar con anticipación, terminar lo que empiezas, cumplir plazos.",
+    low:"Eres flexible y espontáneo/a; las rutinas rígidas te pesan.",
+    mid:"Te organizas cuando hace falta y improvisas cuando conviene.",
+    high:"Eres ordenado/a, constante y orientado/a a tus metas." },
+  { key:"E", icon:"🎉", name:"Extraversión",
+    measures:"Cuánta energía sacas de estar con otras personas y de estar en movimiento.",
+    example:"Conversar con desconocidos, disfrutar los grupos grandes, tomar la iniciativa social.",
+    low:"Recargas energía a solas o en grupos pequeños; tiendes a ser reservado/a.",
+    mid:"Disfrutas tanto la compañía como tu tiempo a solas.",
+    high:"La gente te da energía; eres sociable y expresivo/a." },
+  { key:"A", icon:"🤝", name:"Amabilidad",
+    measures:"Tu nivel de confianza, empatía y disposición a cooperar con los demás.",
+    example:"Preocuparte por cómo se sienten otros, confiar, ceder para evitar conflictos.",
+    low:"Eres directo/a y competitivo/a; defiendes tu criterio con firmeza.",
+    mid:"Equilibras tus necesidades con las de los demás.",
+    high:"Eres empático/a, confiado/a y colaborador/a." },
+  { key:"N", icon:"🌊", name:"Neuroticismo",
+    measures:"Qué tan intensamente sientes el estrés, la preocupación y los cambios de ánimo.",
+    example:"Preocuparte con facilidad, sentir emociones intensas, recuperarte más lento de un mal momento. No es bueno ni malo: es una forma de sentir.",
+    low:"Mantienes la calma con facilidad, incluso bajo presión.",
+    mid:"Sientes el estrés a veces, pero lo sueles manejar bien.",
+    high:"Sientes las emociones con intensidad y tiendes a preocuparte más; eso también te hace muy atento/a." },
+];
+
+// rev:true = afirmación inversa (se puntúa al revés)
+const BIG5_ITEMS = {
+  O: [
+    { text:"Me atraen las ideas nuevas, aunque no tengan una utilidad inmediata.", rev:false },
+    { text:"Disfruto probar actividades o lugares que nunca he conocido.", rev:false },
+    { text:"Prefiero hacer las cosas siempre de la forma que ya conozco.", rev:true },
+    { text:"Me cuesta interesarme por temas abstractos o artísticos.", rev:true },
+  ],
+  C: [
+    { text:"Suelo planificar mis tareas antes de empezar.", rev:false },
+    { text:"Cuando me propongo algo, lo termino aunque me aburra.", rev:false },
+    { text:"Dejo las cosas para última hora con frecuencia.", rev:true },
+    { text:"Se me olvidan compromisos o fechas con facilidad.", rev:true },
+  ],
+  E: [
+    { text:"Me siento cómodo/a conversando con personas que recién conozco.", rev:false },
+    { text:"Me energiza pasar tiempo en grupos grandes.", rev:false },
+    { text:"Después de socializar mucho, necesito estar solo/a para recuperarme.", rev:true },
+    { text:"Prefiero escuchar antes que ser quien lleva la conversación.", rev:true },
+  ],
+  A: [
+    { text:"Me importa de verdad cómo se sienten las demás personas.", rev:false },
+    { text:"Suelo confiar en las buenas intenciones de los demás.", rev:false },
+    { text:"Antepongo mis intereses a los de otras personas.", rev:true },
+    { text:"Me cuesta ceder en una discusión, aunque no sea tan importante.", rev:true },
+  ],
+  N: [
+    { text:"Me preocupo con facilidad por cosas que podrían salir mal.", rev:false },
+    { text:"Mi estado de ánimo cambia bastante de un día a otro.", rev:false },
+    { text:"Aun en situaciones tensas, me mantengo tranquilo/a.", rev:true },
+    { text:"Me recupero rápido de un mal momento.", rev:true },
+  ],
+};
+
+const LIKERT = [
+  { v:1, label:"Muy en desacuerdo" },
+  { v:2, label:"En desacuerdo" },
+  { v:3, label:"Neutral" },
+  { v:4, label:"De acuerdo" },
+  { v:5, label:"Muy de acuerdo" },
+];
+
+// Puntaje 0–100 por rasgo a partir de las respuestas 1–5
+function scoreBig5(ans) {
+  const out = {};
+  BIG5_TRAITS.forEach(t => {
+    const vals = BIG5_ITEMS[t.key].map((it, i) => {
+      const v = ans[`${t.key}${i}`] ?? 3;
+      return it.rev ? 6 - v : v;
+    });
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    out[t.key] = Math.round(((avg - 1) / 4) * 100);
+  });
+  return out;
+}
+const bigLevel = (n) => n < 40 ? "Bajo" : n <= 60 ? "Medio" : "Alto";
+const bigText  = (t, n) => n < 40 ? t.low : n <= 60 ? t.mid : t.high;
+
+function PersonalityTest({ me, onSaveMe }) {
+  const saved = me.extra_answers?.big5?.scores || null;
+  const [phase, setPhase]     = useState(saved ? "result" : "start"); // start | intro | q | result
+  const [ti, setTi]           = useState(0);
+  const [qi, setQi]           = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [scores, setScores]   = useState(saved);
+  const lock = useRef(false);
+
+  const trait = BIG5_TRAITS[ti];
+  const items = BIG5_ITEMS[trait.key];
+  const total = BIG5_TRAITS.length * 4;
+  const answered = Object.keys(answers).length;
+
+  const start = () => { setAnswers({}); setScores(null); setTi(0); setQi(0); setPhase("intro"); };
+
+  const finish = (ans) => {
+    const sc = scoreBig5(ans);
+    setScores(sc);
+    setPhase("result");
+    const updated = { ...me, ocean_o:sc.O, ocean_c:sc.C, ocean_e:sc.E, ocean_a:sc.A, ocean_n:sc.N };
+    onSaveMe(updated, { ...(me.extra_answers || {}), big5:{ at:new Date().toISOString(), scores:sc } });
+  };
+
+  const pick = (v) => {
+    if (lock.current) return;
+    lock.current = true;
+    const next = { ...answers, [`${trait.key}${qi}`]: v };
+    setAnswers(next);
+    setTimeout(() => {
+      if (qi < items.length - 1) setQi(qi + 1);
+      else if (ti < BIG5_TRAITS.length - 1) { setTi(ti + 1); setQi(0); setPhase("intro"); }
+      else finish(next);
+      lock.current = false;
+    }, 250);
+  };
+
+  const backFromQuestion = () => { if (qi > 0) setQi(qi - 1); else setPhase("intro"); };
+  const backFromIntro = () => {
+    if (ti > 0) { setTi(ti - 1); setQi(BIG5_ITEMS[BIG5_TRAITS[ti - 1].key].length - 1); setPhase("q"); }
+    else setPhase("start");
+  };
+
+  const top = scores
+    ? BIG5_TRAITS.reduce((best, t) => Math.abs(scores[t.key] - 50) > Math.abs(scores[best.key] - 50) ? t : best, BIG5_TRAITS[0])
+    : null;
+
+  return (
+    <>
+      <h2 className="panel-title">Tu test de <em>personalidad</em></h2>
+      <p className="panel-sub">Descubre tu perfil OCEAN y mejora tus compatibilidades.</p>
+
+      {phase === "start" && (
+        <>
+          <div className="tp-card" style={{marginBottom:24}}>
+            <div className="tp-eyebrow">Modelo OCEAN · Big Five</div>
+            <h3 className="tp-title">Cinco rasgos, un perfil tuyo</h3>
+            <p className="tp-text">
+              OCEAN no te encasilla en un “tipo” como otros tests. Te da un puntaje de 0 a 100 en cinco rasgos de la personalidad.
+              Son 20 afirmaciones (4 por rasgo) y toma unos 3 minutos. No hay respuestas buenas ni malas.
+            </p>
+            <button className="btn-pill" onClick={start}>Empezar el test →</button>
+          </div>
+          <div className="tp-eyebrow">Lo que vamos a medir</div>
+          <div className="tp-grid">
+            {BIG5_TRAITS.map(t => (
+              <div key={t.key} className="tp-mini">
+                <div className="tp-mini-icon">{t.icon}</div>
+                <h4>{t.name}</h4>
+                <p>{t.measures}</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {phase === "intro" && (
+        <div className="tp-card">
+          <div className="prog-bar" style={{marginBottom:28}}><div className="prog-fill" style={{width:`${(answered / total) * 100}%`}}/></div>
+          <div className="tp-eyebrow">Parte {ti + 1} de {BIG5_TRAITS.length}</div>
+          <div className="tp-big-icon">{trait.icon}</div>
+          <h3 className="tp-title">{trait.name}</h3>
+          <div className="tp-box"><strong>Qué mide</strong><p>{trait.measures}</p></div>
+          <div className="tp-box"><strong>Por ejemplo</strong><p>{trait.example}</p></div>
+          <p className="tp-text" style={{marginTop:18}}>Verás {items.length} afirmaciones. Elige qué tan de acuerdo estás con cada una.</p>
+          <div className="tp-foot">
+            <button className="btn-back" onClick={backFromIntro}>← Atrás</button>
+            <button className="btn-pill" onClick={() => setPhase("q")}>Comenzar →</button>
+          </div>
+        </div>
+      )}
+
+      {phase === "q" && (
+        <div className="tp-card">
+          <div className="prog-bar" style={{marginBottom:28}}><div className="prog-fill" style={{width:`${(answered / total) * 100}%`}}/></div>
+          <div className="tp-eyebrow">{trait.icon} {trait.name} · {qi + 1} de {items.length}</div>
+          <h3 className="tp-title">{items[qi].text}</h3>
+          <div className="tp-opts">
+            {LIKERT.map(o => (
+              <button key={o.v} className={`opt ${answers[`${trait.key}${qi}`] === o.v ? "sel" : ""}`} onClick={() => pick(o.v)}>{o.label}</button>
+            ))}
+          </div>
+          <div className="tp-foot">
+            <button className="btn-back" onClick={backFromQuestion}>← Atrás</button>
+          </div>
+        </div>
+      )}
+
+      {phase === "result" && scores && (
+        <>
+          <div className="tp-card">
+            <div className="tp-eyebrow">Tu resultado</div>
+            <h3 className="tp-title">Tu rasgo más marcado es {top.name.toLowerCase()} {top.icon}</h3>
+            <p className="tp-text">
+              {bigText(top, scores[top.key])} Estos puntajes ya se guardaron en tu perfil y se usan para calcular tu compatibilidad con otras personas.
+            </p>
+            <button className="btn-pill" onClick={start}>Repetir el test</button>
+          </div>
+
+          <div className="tp-res-grid">
+            {BIG5_TRAITS.map(t => (
+              <div key={t.key} className="tp-res">
+                <div className="tp-res-head">
+                  <div className="tp-res-icon">{t.icon}</div>
+                  <div>
+                    <div className="tp-res-name">{t.name}</div>
+                    <div className="tp-res-level">Nivel {bigLevel(scores[t.key]).toLowerCase()}</div>
+                  </div>
+                  <div className="tp-res-score">{scores[t.key]}</div>
+                </div>
+                <div className="tp-bar"><div style={{width:`${scores[t.key]}%`}}/></div>
+                <p>{bigText(t, scores[t.key])}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="tp-note">
+            Este test es una guía para conocerte mejor y encontrar mejores coincidencias, no un diagnóstico psicológico. Ningún puntaje es “mejor” que otro: solo describen formas distintas de ser.
+          </p>
+        </>
+      )}
+    </>
   );
 }
 
@@ -881,6 +1164,13 @@ export default function App() {
     } else {
       const now = new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
       setChatMsgs(p => ({ ...p, [convoKey]: [...(p[convoKey]||[]), { id:Date.now(), type:"sent", text, time:now }] }));
+      if (activeConvo.id === TEST_MATCH.id) {
+        setTimeout(() => {
+          const reply = TEST_REPLIES[Math.floor(Math.random()*TEST_REPLIES.length)];
+          const t = new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+          setChatMsgs(p => ({ ...p, [convoKey]: [...(p[convoKey]||[]), { id:Date.now()+1, type:"recv", text:reply, time:t }] }));
+        }, 1200);
+      }
     }
     setTimeout(() => endRef.current?.scrollIntoView({behavior:"smooth"}), 50);
   };
@@ -888,14 +1178,16 @@ export default function App() {
   const loadMatches = async (userId) => {
     try {
       const matches = await getMatches(userId);
-      setRealMatches(matches.map(m => ({
+      const mapped = matches.map(m => ({
         id: m.matchId, matchId: m.matchId,
         name: m.profile.nickname || m.profile.name || "Kindred",
         avatar: (m.profile.nickname || m.profile.name || "K")[0].toUpperCase(),
         bg: "#EEEDFE", depth: "Nueva conexión", avatar_url: m.profile.avatar_url,
         profile: m.profile,
-      })));
-    } catch(e) { console.error("loadMatches:", e); }
+      }));
+      setRealMatches(mapped);
+      return mapped;
+    } catch(e) { console.error("loadMatches:", e); return []; }
   };
 
   // Carga opciones de tema según OCEAN de ambos perfiles
@@ -949,11 +1241,15 @@ export default function App() {
 
   const startConvo = async (otherProfile) => {
     setPanel("conversations");
-    if (!authUser) return;
+    // Tarjetas de ejemplo (id numérico) o sin sesión: abrir su chat directamente
+    if (!authUser || typeof otherProfile.id === "number") { openConvo(otherProfile); return; }
     try {
       const { matched } = await sendLike(authUser.id, otherProfile.id);
       if (matched) {
-        await loadMatches(authUser.id);
+        // Mutuo: abrir el chat de ese match directamente, sin pasar por la lista
+        const list = await loadMatches(authUser.id);
+        const created = list.find(x => x.profile?.id === otherProfile.id);
+        if (created) await openConvo(created);
       } else {
         const fakeConvo = {
           id: otherProfile.id, matchId: null,
@@ -974,6 +1270,7 @@ export default function App() {
   const answerAndAdvance = v => { answer(v); setTimeout(nextQ, 300); };
   const backQ  = () => { if (step > 0) { setStep(s=>s-1); setSelOpt(answers[QUESTIONS[step-1]?.id]||null); } else setScreen("landing"); };
 
+  const convoList   = SHOW_TEST_MATCH ? [TEST_MATCH, ...realMatches] : realMatches;
   const displayName = profile.nickname || userForm.name || "Tú";
   const showList    = nearbyProfiles.length > 0 ? nearbyProfiles : DEMO_MATCHES;
   const isRealData  = nearbyProfiles.length > 0;
@@ -1180,6 +1477,7 @@ export default function App() {
             {[
               { id:"kindreds",      icon:"✨", label:"Kindreds",       badge: showList.length },
               { id:"conversations", icon:"💬", label:"Conversaciones", badge: DEMO_MATCHES.filter(m=>m.unread).length },
+              { id:"test",          icon:"🧠", label:"Test",           badge: 0 },
               { id:"profile",       icon:"👤", label:"Tú",             badge: 0 },
             ].map(item => (
               <div key={item.id} className={`nav-item ${panel===item.id?"active":""}`} onClick={() => setPanel(item.id)}>
@@ -1201,6 +1499,7 @@ export default function App() {
               {[
                 { id:"kindreds",      icon:"✨", label:"Kindreds",    badge: showList.length },
                 { id:"conversations", icon:"💬", label:"Chats",       badge: DEMO_MATCHES.filter(m=>m.unread).length },
+                { id:"test",          icon:"🧠", label:"Test",        badge: 0 },
                 { id:"profile",       icon:"👤", label:"Perfil",      badge: 0 },
                 { id:"logout",        icon:"🚪", label:"Salir",       badge: 0 },
               ].map(item => (
@@ -1303,20 +1602,20 @@ export default function App() {
                   <div className="convo-list">
                     <div className="convo-list-hdr">
                       <h3>Activas</h3>
-                      <p>{realMatches.length} {realMatches.length === 1 ? "conexión" : "conexiones"}</p>
+                      <p>{convoList.length} {convoList.length === 1 ? "conexión" : "conexiones"}</p>
                     </div>
                     <div className="convo-items">
-                      {realMatches.length === 0 && (
+                      {convoList.length === 0 && (
                         <div style={{padding:"1.5rem 1rem",textAlign:"center",color:"var(--soft)",fontSize:13}}>
                           Aún no tienes matches.<br/>Inicia una conversación desde Kindreds.
                         </div>
                       )}
-                      {realMatches.map(m => (
+                      {convoList.map(m => (
                         <div key={m.id} className={`convo-item ${activeConvo?.id===m.id?"active":""}`} onClick={() => openConvo(m)}>
                           <div className="ci-avatar" style={{background:m.bg}}>{m.avatar_url ? <img src={m.avatar_url} style={{width:"100%",height:"100%",borderRadius:"50%",objectFit:"cover"}}/> : m.avatar}</div>
                           <div className="ci-info">
                             <div className="ci-name">{m.name}</div>
-                            <div className="ci-last">{(chatMsgs[m.matchId]||[]).slice(-1)[0]?.text || "Toca para empezar"}</div>
+                            <div className="ci-last">{(chatMsgs[m.matchId||m.id]||[]).slice(-1)[0]?.text || m.msgs?.slice(-1)[0]?.text || "Toca para empezar"}</div>
                           </div>
                           <div className="ci-meta">
                             <span className="depth-tag">{m.depth}</span>
@@ -1462,6 +1761,9 @@ export default function App() {
                 )}
               </>
             )}
+
+            {/* TEST DE PERSONALIDAD */}
+            {panel === "test" && <PersonalityTest me={me} onSaveMe={handleSaveMe} />}
 
             {/* PERFIL */}
             {panel === "profile" && (
