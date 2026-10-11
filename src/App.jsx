@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "./lib/supabase";
-import { signUp, signIn, signOut, getProfile, upsertProfile, uploadPhoto, saveAnswers, getNearbyProfiles, sendLike, getMatches, getMessages, sendMessage, subscribeToMessages, proposeTopic, respondToProposal, getPendingProposal, subscribeToProposals, selectTopics, TOPIC_TYPE_META } from "./lib/api";
+import { signUp, signIn, signOut, getProfile, upsertProfile, uploadPhoto, saveAnswers, getNearbyProfiles, sendLike, getMatches, getMessages, sendMessage, subscribeToMessages, proposeTopic, respondToProposal, getPendingProposal, subscribeToProposals, selectTopics, TOPIC_TYPE_META, getCompatibility, getPairGroup, nextExtraTest, refineTrait, TRAIT_KEY, COMPAT_THRESHOLD, MIN_EXTRA_TESTS, MAX_EXTRA_TESTS } from "./lib/api";
 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
@@ -438,6 +438,20 @@ const css = `
     .location-banner { padding:12px 14px; }
   }
 
+  /* ── Test de afinidad ───────────────────────────────────────────── */
+  .tm-box { background:white;border-radius:24px;padding:32px 30px;width:100%;max-width:480px;position:relative;box-shadow:0 24px 70px rgba(44,36,32,.25); }
+  .tm-close { position:absolute;top:14px;right:16px;background:none;border:none;font-size:20px;color:var(--soft);cursor:pointer; }
+  .tm-label { font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--soft);margin-bottom:10px; }
+  .tm-q { font-family:'Lora',serif;font-size:21px;line-height:1.3;color:var(--dark);margin-bottom:18px; }
+  .tm-compat { margin-bottom:20px; }
+  .tm-compat-top { display:flex;justify-content:space-between;font-size:12px;color:var(--soft);margin-bottom:6px; }
+  .tm-track { height:6px;background:var(--warm);border-radius:100px;overflow:hidden; }
+  .tm-fill { height:100%;background:var(--terra);border-radius:100px;transition:width .5s ease; }
+  .tm-fill.ok { background:var(--green); }
+  .tm-result { text-align:center;padding:8px 0 4px; }
+  .tm-result h3 { font-family:'Lora',serif;font-size:24px;color:var(--dark);margin-bottom:10px; }
+  .tm-result p { font-size:14px;color:var(--mid);line-height:1.6;margin-bottom:20px; }
+
   /* ── TABLET adjustments ─────────────────────────────────────────── */
   @media (min-width: 769px) and (max-width: 1024px) {
     .dashboard { grid-template-columns:220px 1fr; }
@@ -458,10 +472,10 @@ const QUESTIONS = [
 ];
 
 const DEMO_MATCHES = [
-  { id:1, name:"Valentina", age:24, avatar:"🌿", bg:"#E8F4E8", reason:"Los dos son noctámbulos curiosos que hablan solos cuando piensan", compat:87, msgs:[{id:1,type:"recv",text:"Las mejores cosas pasan cuando no las planeas.",time:"10:24"}], depth:"Nivel 2", unread:true },
-  { id:2, name:"Sofía",     age:22, avatar:"🎵", bg:"#F4EEE8", reason:"Ambas valoran las conversaciones profundas sobre las superficiales",   compat:82, msgs:[{id:1,type:"recv",text:"¿Cuál fue el último libro que te cambió algo?",time:"Ayer"}],  depth:"Nivel 1", unread:true },
-  { id:3, name:"Camila",    age:25, avatar:"🌙", bg:"#EEE8F4", reason:"Comparten esa sensación de observar antes de participar en grupos",    compat:79, msgs:[], depth:"Nuevo", unread:false },
-  { id:4, name:"Isidora",   age:23, avatar:"☕", bg:"#F4F0E8", reason:"Las dos prefieren una conversación lenta a un montón de mensajes rápidos", compat:76, msgs:[], depth:"Nuevo", unread:false },
+  { id:1, name:"Valentina", age:24, ocean_o:66, ocean_c:42, ocean_e:36, ocean_a:62, ocean_n:62, avatar:"🌿", bg:"#E8F4E8", reason:"Los dos son noctámbulos curiosos que hablan solos cuando piensan", compat:87, msgs:[{id:1,type:"recv",text:"Las mejores cosas pasan cuando no las planeas.",time:"10:24"}], depth:"Nivel 2", unread:true },
+  { id:2, name:"Sofía",     age:22, ocean_o:74, ocean_c:36, ocean_e:32, ocean_a:70, ocean_n:68, avatar:"🎵", bg:"#F4EEE8", reason:"Ambas valoran las conversaciones profundas sobre las superficiales",   compat:82, msgs:[{id:1,type:"recv",text:"¿Cuál fue el último libro que te cambió algo?",time:"Ayer"}],  depth:"Nivel 1", unread:true },
+  { id:3, name:"Camila",    age:25, ocean_o:70, ocean_c:72, ocean_e:24, ocean_a:60, ocean_n:74, avatar:"🌙", bg:"#EEE8F4", reason:"Comparten esa sensación de observar antes de participar en grupos",    compat:79, msgs:[], depth:"Nuevo", unread:false },
+  { id:4, name:"Isidora",   age:23, ocean_o:72, ocean_c:74, ocean_e:20, ocean_a:70, ocean_n:24, avatar:"☕", bg:"#F4F0E8", reason:"Las dos prefieren una conversación lenta a un montón de mensajes rápidos", compat:76, msgs:[], depth:"Nuevo", unread:false },
 ];
 
 const DEMO_SCRIPT = [
@@ -471,6 +485,68 @@ const DEMO_SCRIPT = [
   { type:"sent", text:"Exacto. Cuando tengo todo planificado siento que estoy cumpliendo tareas, no viviendo.", delay:2200 },
   { type:"recv", text:"¿Y cuándo fue la última vez que te perdiste así, sin rumbo?", delay:1800 },
 ];
+
+// ─── Test de afinidad (preguntas extra con alguien cercano) ──────────────────
+function AffinityTestModal({ me, target, onSaveMe, onClose, onConnect }) {
+  const [mine, setMine]   = useState(me);
+  const [extra, setExtra] = useState(me.extra_answers || {});
+  const [done, setDone]   = useState(0);
+
+  const compat     = getCompatibility(mine, target) ?? 0;
+  const group      = getPairGroup(mine, target);
+  const question   = nextExtraTest(group, Object.keys(extra), mine, target);
+  const compatible = done >= MIN_EXTRA_TESTS && compat >= COMPAT_THRESHOLD;
+  const finished   = compatible || done >= MAX_EXTRA_TESTS || !question;
+
+  const pick = (opt) => {
+    const key = TRAIT_KEY[question.trait];
+    const updated = { ...mine, [key]: refineTrait(mine[key], opt.score) };
+    const nextExtra = { ...extra, [question.id]: opt.label };
+    setMine(updated); setExtra(nextExtra); setDone(d => d + 1);
+    onSaveMe(updated, nextExtra);
+  };
+
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="tm-box">
+        <button className="tm-close" onClick={onClose} aria-label="Cerrar">✕</button>
+
+        <div className="tm-compat">
+          <div className="tm-compat-top"><span>Afinidad con alguien cerca de ti</span><span>{compat}%</span></div>
+          <div className="tm-track"><div className={`tm-fill ${compat >= COMPAT_THRESHOLD ? "ok" : ""}`} style={{width:`${compat}%`}}/></div>
+        </div>
+
+        {!finished && (
+          <>
+            <div className="tm-label">Pregunta {done + 1} · avancemos en la compatibilidad</div>
+            <h3 className="tm-q">{question.question}</h3>
+            <div className="opts">
+              {question.options.map(o => (
+                <button key={o.label} className="opt" onClick={() => pick(o)}>{o.label}</button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {finished && compatible && (
+          <div className="tm-result">
+            <h3>¡Hay afinidad! 🌿</h3>
+            <p>Con tus respuestas, la compatibilidad con esta persona llegó a {compat}%. Ya pueden empezar a conversar.</p>
+            <button className="btn-pill" onClick={onConnect}>Conectar →</button>
+          </div>
+        )}
+
+        {finished && !compatible && (
+          <div className="tm-result">
+            <h3>Todavía no vemos tanta afinidad</h3>
+            <p>Después de {done} {done === 1 ? "pregunta" : "preguntas"} la compatibilidad es {compat}%. Tus respuestas quedaron guardadas y ayudan a encontrar mejores coincidencias.</p>
+            <button className="btn-pill" onClick={onClose}>Entendido</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── Demo Modal ───────────────────────────────────────────────────────────────
 function DemoModal({ onClose }) {
@@ -586,7 +662,7 @@ export default function App() {
   const [chatMsgs, setChatMsgs]   = useState({});
   const [msgInput, setMsgInput]   = useState("");
   const [authUser, setAuthUser]   = useState(null);
-  const [userForm, setUserForm]   = useState({ name:"", email:"", password:"" });
+  const [userForm, setUserForm]   = useState({ name:"", email:"", password:"", age:"" });
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [profile, setProfile]     = useState({ nickname:"", bio:"", interests:[], photo:null, relationshipStatus:"", interestedIn:[] });
@@ -595,6 +671,9 @@ export default function App() {
   const [userLocation, setUserLocation] = useState(null);
   const [realMatches, setRealMatches] = useState([]);
   const [pendingProposal, setPendingProposal] = useState(null);
+  // Mis datos para compatibilidad: edad + scores OCEAN + tests extra respondidos
+  const [me, setMe] = useState({ age:null, ocean_o:50, ocean_c:50, ocean_e:50, ocean_a:50, ocean_n:50, extra_answers:{} });
+  const [testTarget, setTestTarget] = useState(null);
   const [topicOptions, setTopicOptions]       = useState(null);
   const [showTopicPicker, setShowTopicPicker] = useState(false);
   const subRef     = useRef(null);
@@ -626,7 +705,10 @@ export default function App() {
   const loadProfile = async (uid) => {
     try {
       const data = await getProfile(uid);
-      if (data) setProfile({ nickname: data.nickname||"", bio: data.bio||"", interests: data.interests||[], photo: data.avatar_url||null, relationshipStatus: data.relationship_status||"", interestedIn: data.interested_in||[] });
+      if (data) {
+        setProfile({ nickname: data.nickname||"", bio: data.bio||"", interests: data.interests||[], photo: data.avatar_url||null, relationshipStatus: data.relationship_status||"", interestedIn: data.interested_in||[] });
+        setMe({ age: data.age ?? null, ocean_o: data.ocean_o ?? 50, ocean_c: data.ocean_c ?? 50, ocean_e: data.ocean_e ?? 50, ocean_a: data.ocean_a ?? 50, ocean_n: data.ocean_n ?? 50, extra_answers: data.extra_answers || {} });
+      }
     } catch(e) { console.error(e); }
   };
 
@@ -695,13 +777,18 @@ export default function App() {
   const handleRegister = async () => {
     setAuthLoading(true); setAuthError("");
     try {
-      const data = await signUp(userForm.email, userForm.password, userForm.name);
+      const ageNum = Number(userForm.age);
+      const data = await signUp(userForm.email, userForm.password, userForm.name, ageNum);
       setAuthUser(data.user);
-      if (data.user && Object.keys(answers).length > 0) {
-        await saveAnswers(data.user.id, answers);
-        // Guardar scores OCEAN derivados en el perfil
-        const oceanScores = deriveOceanFromAnswers(answers);
-        await upsertProfile(data.user.id, oceanScores);
+      if (data.user) {
+        // Edad + (si respondió el onboarding) scores OCEAN derivados
+        let fields = { age: ageNum };
+        if (Object.keys(answers).length > 0) {
+          await saveAnswers(data.user.id, answers);
+          fields = { ...fields, ...deriveOceanFromAnswers(answers) };
+        }
+        await upsertProfile(data.user.id, fields);
+        setMe(m => ({ ...m, ...fields }));
       }
       setScreen("dashboard");
       loadMatches(data.user.id);
@@ -725,8 +812,10 @@ export default function App() {
   const handleLogout = async () => {
     await signOut();
     setAuthUser(null);
-    setUserForm({ name:"", email:"", password:"" });
+    setUserForm({ name:"", email:"", password:"", age:"" });
     setProfile({ nickname:"", bio:"", interests:[], photo:null });
+    setMe({ age:null, ocean_o:50, ocean_c:50, ocean_e:50, ocean_a:50, ocean_n:50, extra_answers:{} });
+    setTestTarget(null);
     setNearbyProfiles([]);
     setScreen("landing");
   };
@@ -804,6 +893,7 @@ export default function App() {
         name: m.profile.nickname || m.profile.name || "Kindred",
         avatar: (m.profile.nickname || m.profile.name || "K")[0].toUpperCase(),
         bg: "#EEEDFE", depth: "Nueva conexión", avatar_url: m.profile.avatar_url,
+        profile: m.profile,
       })));
     } catch(e) { console.error("loadMatches:", e); }
   };
@@ -812,11 +902,24 @@ export default function App() {
   const loadTopicOptions = async () => {
     if (!activeConvo?.matchId || !authUser) return;
     try {
-      const myProfile = await import('./lib/api').then(() => ({ ocean_o: 50, ocean_c: 50, ocean_e: 50, ocean_a: 50, ocean_n: 50 }));
+      const myProfile = me;
       const theirProfileData = realMatches.find(m => m.matchId === activeConvo.matchId);
       const opts = selectTopics(myProfile, theirProfileData?.profile || {});
       setTopicOptions(opts);
     } catch(e) { console.error("loadTopicOptions:", e); }
+  };
+
+  // Guarda mis scores afinados + respuestas de tests extra
+  const handleSaveMe = async (updated, extraAnswers) => {
+    setMe({ ...updated, extra_answers: extraAnswers });
+    if (!authUser) return;
+    try {
+      await upsertProfile(authUser.id, {
+        ocean_o: updated.ocean_o, ocean_c: updated.ocean_c, ocean_e: updated.ocean_e,
+        ocean_a: updated.ocean_a, ocean_n: updated.ocean_n,
+        extra_answers: extraAnswers,
+      });
+    } catch(e) { console.error("handleSaveMe:", e); }
   };
 
   // Proponer un tema
@@ -874,6 +977,15 @@ export default function App() {
   const displayName = profile.nickname || userForm.name || "Tú";
   const showList    = nearbyProfiles.length > 0 ? nearbyProfiles : DEMO_MATCHES;
   const isRealData  = nearbyProfiles.length > 0;
+  const ageNum      = Number(userForm.age);
+  const ageValid    = Number.isInteger(ageNum) && ageNum >= 18 && ageNum <= 99;
+
+  // Al dar "Conectar" siempre salen tests para avanzar en la compatibilidad.
+  // Solo se conecta directo si no hay datos de personalidad de la otra persona.
+  const handleConnect = (m) => {
+    if (getCompatibility(me, m) === null) { startConvo(m); return; }
+    setTestTarget(m);
+  };
 
   return (
     <div>
@@ -882,6 +994,15 @@ export default function App() {
       <div className="blob blob-b"/>
       <div className="blob blob-c"/>
       {showDemo && <DemoModal onClose={() => setShowDemo(false)}/>}
+      {testTarget && (
+        <AffinityTestModal
+          me={me}
+          target={testTarget}
+          onSaveMe={handleSaveMe}
+          onClose={() => setTestTarget(null)}
+          onConnect={() => { const t = testTarget; setTestTarget(null); startConvo(t); }}
+        />
+      )}
 
       {/* LOADING */}
       {screen === "loading" && (
@@ -984,6 +1105,13 @@ export default function App() {
               <input type="text" placeholder="¿Cómo te llamas?" value={userForm.name} onChange={e => setUserForm(f=>({...f,name:e.target.value}))}/>
             </div>
             <div className="field">
+              <label>Tu edad</label>
+              <input type="number" inputMode="numeric" min="18" max="99" placeholder="Ej: 24" value={userForm.age} onChange={e => setUserForm(f=>({...f,age:e.target.value}))}/>
+              {userForm.age !== "" && !ageValid && (
+                <span style={{fontSize:12,color:"var(--terra)"}}>Kindred es para personas de 18 años o más.</span>
+              )}
+            </div>
+            <div className="field">
               <label>Email</label>
               <input type="email" placeholder="tu@email.com" value={userForm.email} onChange={e => setUserForm(f=>({...f,email:e.target.value}))}/>
             </div>
@@ -993,7 +1121,7 @@ export default function App() {
             </div>
             {authError && <div className="auth-error">{authError}</div>}
             <button className="btn-pill auth-btn"
-              disabled={authLoading||!userForm.name||!userForm.email||!userForm.password}
+              disabled={authLoading||!userForm.name||!ageValid||!userForm.email||!userForm.password}
               onClick={handleRegister}>
               {authLoading ? "Creando cuenta..." : "Ver mis kindreds ✨"}
             </button>
@@ -1120,7 +1248,7 @@ export default function App() {
                       <div className="k-name" style={{color:"var(--soft)",fontStyle:"italic",fontSize:15,fontFamily:"'DM Sans',sans-serif",fontWeight:400}}>Alguien cerca de ti</div>
                       <div className="k-age">
                         {isRealData && m.distance_km != null
-                          ? `📍 ${m.distance_km < 1 ? "< 1 km" : `${m.distance_km} km`}`
+                          ? `📍 ${m.distance_km < 1 ? "< 1 km" : `${m.distance_km} km`}${m.age ? ` · ${m.age} años` : ""}`
                           : m.age ? `${m.age} años` : ""}
                       </div>
                       {(m.reason || m.bio) && (
@@ -1134,10 +1262,18 @@ export default function App() {
                           {m.interests.slice(0,3).map(t => <span key={t} className="k-tag">{t}</span>)}
                         </div>
                       )}
+                      {(() => {
+                        const compat = getCompatibility(me, m) ?? m.compat;
+                        if (compat == null) return null;
+                        return (
+                          <>
+                            <div className="k-compat-label"><span>Compatibilidad</span><span>{compat}%</span></div>
+                            <div className="k-track"><div className="k-fill" style={{width:`${compat}%`}}/></div>
+                          </>
+                        );
+                      })()}
                       {!isRealData && (
                         <>
-                          <div className="k-compat-label"><span>Compatibilidad</span><span>{m.compat}%</span></div>
-                          <div className="k-track"><div className="k-fill" style={{width:`${m.compat}%`}}/></div>
                           {m.reason && (
                             <div className="k-tags" style={{marginTop:8}}>
                               <span className="k-tag">Conversaciones profundas</span>
@@ -1149,7 +1285,7 @@ export default function App() {
                       <div style={{fontSize:11,color:"var(--soft)",margin:"10px 0 4px",textAlign:"center",lineHeight:1.5}}>
                         🔒 Foto y nombre se revelan al conectar
                       </div>
-                      <button className="k-btn" onClick={() => startConvo(m)}>
+                      <button className="k-btn" onClick={() => handleConnect(m)}>
                         Conectar →
                       </button>
                     </div>
