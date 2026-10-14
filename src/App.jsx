@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "./lib/supabase";
-import { signUp, signIn, signOut, getProfile, upsertProfile, uploadPhoto, saveAnswers, getNearbyProfiles, sendLike, getMatches, getMessages, sendMessage, subscribeToMessages, proposeTopic, respondToProposal, getPendingProposal, subscribeToProposals, selectTopics, TOPIC_TYPE_META, getCompatibility, getPairGroup, nextExtraTest, refineTrait, TRAIT_KEY, COMPAT_THRESHOLD, MIN_EXTRA_TESTS, MAX_EXTRA_TESTS } from "./lib/api";
+import { signUp, signIn, signOut, getProfile, upsertProfile, uploadPhoto, saveAnswers, getNearbyProfiles, sendLike, getMatches, getMessages, sendMessage, subscribeToMessages, proposeTopic, respondToProposal, getPendingProposal, subscribeToProposals, selectTopics, TOPIC_TYPE_META, getCompatibility, getPairGroup, nextExtraTest, refineTrait, TRAIT_KEY, COMPAT_THRESHOLD, MIN_EXTRA_TESTS, MAX_EXTRA_TESTS, getSocialState, sendPass, subscribeToSocial } from "./lib/api";
 
 const css = `
   @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
@@ -567,6 +567,70 @@ const css = `
   @media (prefers-reduced-motion: reduce) { .tour-card *, .tv-track div { animation:none !important;transition:none !important; } }
   @media (max-width:768px) { .tour-card { padding:20px 18px;border-radius:22px; } .tour-title { font-size:22px; } }
 
+  /* ── Conversaciones en una sola pantalla (sin scroll de página) ──── */
+  .convos-layout > * { min-height:0; }
+  .convo-list { min-height:0; }
+  @media (min-width:769px) {
+    .main.main-fit { height:calc(100vh - 72px);min-height:0;overflow:hidden;display:flex;flex-direction:column;padding:28px 52px 32px; }
+    .main.main-fit .panel-title { font-size:26px;margin-bottom:2px; }
+    .main.main-fit .panel-sub { font-size:14px;margin-bottom:16px; }
+    .main.main-fit .convos-layout { flex:1;min-height:0;height:auto; }
+  }
+
+  /* ── Ruleta Kindred ─────────────────────────────────────────────── */
+  @keyframes rlPulse { 0%,100% { box-shadow:0 0 0 0 rgba(193,122,90,.35); } 50% { box-shadow:0 0 0 12px rgba(193,122,90,0); } }
+  .rl-pane { overflow-y:auto; }
+  .rl { flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:18px 24px;text-align:center;--wheel:min(236px,30vh); }
+  .rl-eyebrow { font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--terra);font-weight:600; }
+  .rl-title { font-family:'Lora',serif;font-size:24px;line-height:1.25;color:var(--dark); }
+  .rl-text { font-size:13.5px;line-height:1.55;color:var(--mid);max-width:380px; }
+  .rl-testtag { font-size:11.5px;color:var(--soft);background:var(--cream);border:1px dashed var(--line-strong);border-radius:100px;padding:4px 12px; }
+  .rl-stage { position:relative;width:var(--wheel);height:var(--wheel);margin:4px 0; }
+  .rl-pointer { position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;border-top:20px solid var(--terra);z-index:3;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25)); }
+  .rl-wheel { position:relative;width:100%;height:100%;border-radius:50%;border:4px solid var(--terra);box-shadow:0 10px 30px rgba(44,36,32,.18);transition:transform 4s cubic-bezier(.12,.7,.1,1); }
+  .rl-wheel.idle { animation:rlPulse 2.4s ease infinite; }
+  .rl-label { position:absolute;top:50%;left:50%;width:0;height:0;display:flex;align-items:center;justify-content:center;font-size:22px; }
+  .rl-hub { position:absolute;top:50%;left:50%;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:var(--surface);border:3px solid var(--terra);display:flex;align-items:center;justify-content:center;font-size:18px;z-index:2; }
+  .rl-result { background:var(--cream);border:1px solid var(--line-strong);border-radius:18px;padding:14px 18px;width:100%;max-width:330px;animation:fadeUp .4s ease both; }
+  .rl-result strong { display:block;font-family:'Lora',serif;font-size:17px;color:var(--dark);margin-bottom:4px; }
+  .rl-result small { display:block;font-size:12.5px;color:var(--mid);margin-bottom:8px; }
+  .rl-bar { height:6px;background:var(--warm);border-radius:100px;overflow:hidden;margin-bottom:12px; }
+  .rl-bar div { height:100%;background:var(--terra);border-radius:100px; }
+  .rl-actions { display:flex;gap:8px;justify-content:center;flex-wrap:wrap; }
+  .rl-ghost { background:none;border:1px solid var(--line-strong);color:var(--mid);border-radius:100px;padding:10px 18px;font-family:'DM Sans',sans-serif;font-size:13.5px;cursor:pointer; }
+  .rl-ghost:hover { border-color:var(--terra);color:var(--terra); }
+  @media (prefers-reduced-motion: reduce) { .rl-wheel { transition-duration:.01s; } .rl-wheel.idle { animation:none; } }
+  @media (max-width:768px) {
+    .convos-layout .chat-panel.rl-pane { display:flex !important;order:-1;border-bottom:1px solid var(--warm); }
+    .rl { --wheel:200px;padding:20px 16px; }
+    .rl-entry { display:none; }
+  }
+
+  /* ── Revelación: foto + ✕ / ✓ antes de conversar ─────────────────── */
+  @keyframes revealIn { from { opacity:0;transform:scale(.92); } }
+  .tm-reveal { text-align:center;animation:revealIn .45s cubic-bezier(.2,.8,.2,1) both; }
+  .tm-reveal-eyebrow { font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--green);font-weight:600;margin-bottom:14px; }
+  .tm-photo { width:132px;height:132px;border-radius:50%;margin:0 auto 14px;overflow:hidden;border:4px solid var(--terra);box-shadow:0 10px 30px rgba(44,36,32,.22);display:flex;align-items:center;justify-content:center;font-size:56px; }
+  .tm-photo img { width:100%;height:100%;object-fit:cover; }
+  .tm-reveal h3 { font-family:'Lora',serif;font-size:24px;color:var(--dark);margin-bottom:4px; }
+  .tm-reveal p { font-size:14px;color:var(--mid);line-height:1.55;margin-bottom:18px; }
+  .tm-choice { display:flex;justify-content:center;gap:28px;margin-bottom:10px; }
+  .tm-choice button { width:68px;height:68px;border-radius:50%;font-size:30px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;font-family:'DM Sans',sans-serif; }
+  .tm-choice button:hover { transform:translateY(-3px) scale(1.05); }
+  .tm-choice button:focus-visible { outline:3px solid var(--terra);outline-offset:3px; }
+  .tm-no  { background:var(--surface);border:2px solid var(--line-strong);color:#d9534f; }
+  .tm-no:hover { border-color:#d9534f; }
+  .tm-yes { background:var(--green);border:2px solid var(--green);color:#fff;box-shadow:0 8px 22px rgba(122,158,126,.45); }
+  .tm-hint { font-size:12px;color:var(--soft); }
+  .rl-notice { font-size:13px;color:var(--terra);background:rgba(193,122,90,.1);border-radius:100px;padding:6px 14px; }
+
+  /* ── Match mutuo: avisos y listas ───────────────────────────────── */
+  .toast-wrap { position:fixed;left:0;right:0;bottom:28px;display:flex;justify-content:center;z-index:400;pointer-events:none;padding:0 16px; }
+  .toast { background:var(--dark);color:var(--cream);padding:12px 22px;border-radius:100px;font-size:14px;box-shadow:0 12px 36px rgba(0,0,0,.28);animation:fadeUp .35s ease both;max-width:520px;text-align:center;line-height:1.4; }
+  .cl-section { padding:12px 20px 6px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--soft);font-weight:600; }
+  .cl-pending { opacity:.7;cursor:default; }
+  @media (max-width:768px) { .toast-wrap { bottom:88px; } }
+
   /* ── TABLET adjustments ─────────────────────────────────────────── */
   @media (min-width: 769px) and (max-width: 1024px) {
     .dashboard { grid-template-columns:220px 1fr; }
@@ -606,6 +670,36 @@ const TEST_REPLIES = [
   "¿Y cómo fue eso para ti?",
 ];
 
+// Compatibilidad con soporte para personas de prueba: si traen forceCompat, ese valor manda
+const compatOf = (a, b) => b?.forceCompat ?? getCompatibility(a, b);
+
+// Fran: persona de prueba hardcodeada, SIEMPRE afín a ti (~98%), para poder probar
+// Kindreds → ruleta → test de afinidad → chat sin tener gente real cerca.
+// Ponlo en false para producción.
+const SHOW_FRAN = true;
+const TEST_AUTO_ACCEPT_MS = 3000;   // en modo prueba, la persona de ejemplo "te acepta de vuelta" a los 3 s
+const FRAN_PHOTO = "data:image/svg+xml;utf8," + encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>" +
+  "<stop offset='0' stop-color='#F9D5DD'/><stop offset='1' stop-color='#F0A9BC'/></linearGradient></defs>" +
+  "<rect width='200' height='200' fill='url(#g)'/><path d='M36 200c0-44 28-66 64-66s64 22 64 66z' fill='#C17A5A'/>" +
+  "<circle cx='100' cy='90' r='37' fill='#F2C9A8'/>" +
+  "<path d='M60 94c-6-42 22-62 48-58 32 4 42 30 30 64-6-22-16-32-36-34-20 2-34 10-42 28z' fill='#4A2F26'/>" +
+  "<circle cx='87' cy='95' r='3.2' fill='#4A2F26'/><circle cx='113' cy='95' r='3.2' fill='#4A2F26'/>" +
+  "<path d='M90 111q10 9 20 0' stroke='#B5604A' stroke-width='3' fill='none' stroke-linecap='round'/></svg>"
+);
+const clamp100 = (n) => Math.max(0, Math.min(100, Math.round(n)));
+function makeFran(me) {
+  return {
+    id: 99, name: "Fran", avatar: "🌷", avatar_url: FRAN_PHOTO, bg: "#FBE9EE", depth: "Nueva conexión",
+    age: me.age || 24, distance_km: 1, compat: 98, forceCompat: 98, unread: false,
+    // Sus rasgos salen de los tuyos con una diferencia mínima: la afinidad es alta sea cual sea tu perfil
+    ocean_o: clamp100(me.ocean_o + 2), ocean_c: clamp100(me.ocean_c - 2), ocean_e: clamp100(me.ocean_e + 1),
+    ocean_a: clamp100(me.ocean_a - 2), ocean_n: clamp100(me.ocean_n + 2),
+    reason: "Piensan parecido: les gusta ir profundo y sin apuro",
+    msgs: [{ id:1, type:"recv", text:"¡Hola! Soy la Fran 🌷 Qué bueno que la ruleta nos juntó", time:"10:30" }],
+  };
+}
+
 const DEMO_SCRIPT = [
   { type:"recv", text:"¿Qué harías si tuvieras un día completamente libre, sin planes ni obligaciones?", delay:500 },
   { type:"sent", text:"Empezaría caminando sin rumbo. Las mejores cosas que me han pasado fueron cuando no las planeé.", delay:2000 },
@@ -613,6 +707,122 @@ const DEMO_SCRIPT = [
   { type:"sent", text:"Exacto. Cuando tengo todo planificado siento que estoy cumpliendo tareas, no viviendo.", delay:2200 },
   { type:"recv", text:"¿Y cuándo fue la última vez que te perdiste así, sin rumbo?", delay:1800 },
 ];
+
+// ─── Ruleta Kindred: el azar te conecta con alguien afín ─────────────────────
+const RL_EMOJIS   = ["🌱","🌿","🍃","🌸","🌼","🌙","⭐","🔥"];
+const RL_COLORS   = ["rgba(193,122,90,.30)","rgba(122,158,126,.30)","rgba(226,190,110,.30)"];
+const RL_SEGMENTS = 8;
+
+function KindredRoulette({ candidates, me, onConnect, onGoTest, testMode, excludeIds = [], initialNotice = "", onNoticeShown }) {
+  const [rot, setRot]           = useState(0);
+  const [spinning, setSpinning] = useState(false);
+  const [result, setResult]     = useState(null);
+  const [notice, setNotice] = useState(initialNotice);
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (initialNotice) onNoticeShown?.(); }, []);
+
+  // Solo entran personas con afinidad suficiente (y no las que ya descartaste, si queda alguien más)
+  const eligible = candidates
+    .map(person => ({ person, compat: compatOf(me, person) ?? person.compat ?? 0 }))
+    .filter(x => x.compat >= COMPAT_THRESHOLD);
+  const fresh = eligible.filter(x => !excludeIds.includes(x.person.id));
+  const pool  = fresh.length ? fresh : eligible;
+
+  const seg  = 360 / RL_SEGMENTS;
+  const segs = pool.length ? Array.from({ length: RL_SEGMENTS }, (_, i) => pool[i % pool.length]) : [];
+
+  const spin = () => {
+    if (spinning || pool.length === 0) return;
+    // Azar con peso: a mayor afinidad, más probabilidad de salir
+    const weights = pool.map(x => x.compat * x.compat);
+    let r = Math.random() * weights.reduce((a, b) => a + b, 0);
+    let wi = 0;
+    for (; wi < pool.length - 1; wi++) { r -= weights[wi]; if (r <= 0) break; }
+    const idxs = segs.map((x, i) => (x === pool[wi] ? i : -1)).filter(i => i >= 0);
+    const idx  = idxs[Math.floor(Math.random() * idxs.length)];
+    const jitter  = (Math.random() - 0.5) * seg * 0.6;
+    const target  = 360 - (idx * seg + seg / 2) + jitter;
+    const current = ((rot % 360) + 360) % 360;
+    const delta   = (((target - current) % 360) + 360) % 360;
+
+    setResult(null);
+    setNotice("");
+    setSpinning(true);
+    setRot(rot + 360 * 5 + delta);
+    timer.current = setTimeout(() => {
+      setSpinning(false);
+      setResult({ ...pool[wi], emoji: RL_EMOJIS[idx] });
+    }, 4200);
+  };
+
+  return (
+    <div className="rl">
+      <div className="rl-eyebrow">🎡 Ruleta Kindred</div>
+      <h3 className="rl-title">Deja que el azar te conecte</h3>
+      {notice && <div className="rl-notice" role="status">{notice}</div>}
+      {testMode && <div className="rl-testtag">🧪 Modo prueba: incluye a Fran, afín a ti</div>}
+
+      {pool.length === 0 ? (
+        <>
+          <p className="rl-text">Todavía no hay personas con afinidad suficiente cerca de ti. Afina tu perfil con el test y vuelve a intentarlo.</p>
+          <button className="btn-pill" onClick={onGoTest}>Hacer el test 🧠</button>
+        </>
+      ) : (
+        <>
+          <p className="rl-text">
+            Es un juego: gira la ruleta y el azar elige a alguien cerca de ti con quien tengas afinidad ({COMPAT_THRESHOLD}% o más).
+            Después responden unas preguntas juntos para confirmar.
+          </p>
+
+          <div className="rl-stage">
+            <div className="rl-pointer"/>
+            <div
+              className={`rl-wheel ${!spinning && !result ? "idle" : ""}`}
+              style={{
+                transform:`rotate(${rot}deg)`,
+                background:`conic-gradient(${segs.map((_, i) => `${RL_COLORS[i % RL_COLORS.length]} ${i * seg}deg ${(i + 1) * seg}deg`).join(",")})`,
+              }}
+              aria-hidden="true"
+            >
+              {segs.map((_, i) => (
+                <div key={i} className="rl-label" style={{ transform:`rotate(${i * seg + seg / 2}deg) translateY(calc(var(--wheel) * -0.34))` }}>
+                  {RL_EMOJIS[i % RL_EMOJIS.length]}
+                </div>
+              ))}
+            </div>
+            <div className="rl-hub">✦</div>
+          </div>
+
+          <div aria-live="polite" style={{width:"100%",display:"flex",justifyContent:"center"}}>
+            {result && (
+              <div className="rl-result">
+                <strong>{result.emoji} ¡El azar eligió por ti!</strong>
+                <small>
+                  Afinidad {result.compat}%
+                  {result.person.distance_km != null ? ` · 📍 ${result.person.distance_km < 1 ? "< 1 km" : `${result.person.distance_km} km`}` : ""}
+                  {result.person.age ? ` · ${result.person.age} años` : ""}
+                </small>
+                <div className="rl-bar"><div style={{width:`${result.compat}%`}}/></div>
+                <div className="rl-actions">
+                  <button className="btn-pill" onClick={() => onConnect(result.person, "roulette")}>Conectar →</button>
+                  <button className="rl-ghost" onClick={spin}>Girar otra vez</button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {!result && (
+            <button className="btn-pill" onClick={spin} disabled={spinning}>
+              {spinning ? "Girando…" : "Girar la ruleta 🎲"}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 // ─── Guía de bienvenida (después de registrarse) ─────────────────────────────
 const TOUR_LEN = 6;
@@ -771,30 +981,71 @@ function WelcomeTour({ name, theme, onToggleTheme, onClose }) {
   );
 }
 
+// ─── Revelación: foto + ✕ / ✓ ────────────────────────────────────────────────
+function RevealCard({ target, eyebrow, onYes, onNo }) {
+  const who   = target.nickname || target.name || "Kindred";
+  const first = who.split(" ")[0];
+  return (
+    <div className="tm-reveal">
+      <div className="tm-reveal-eyebrow">{eyebrow}</div>
+      <div className="tm-photo" style={{background: target.bg || "rgba(193,122,90,.14)"}}>
+        {target.avatar_url
+          ? <img src={target.avatar_url} alt={`Foto de ${who}`}/>
+          : <span>{target.avatar || who[0]?.toUpperCase()}</span>}
+      </div>
+      <h3>{who}{target.age ? `, ${target.age}` : ""}</h3>
+      <p>¿Quieres conversar con {first}?</p>
+      <div className="tm-choice">
+        <button className="tm-no"  onClick={onNo}  aria-label={`No, descartar a ${first}`} title="No, gracias">✕</button>
+        <button className="tm-yes" onClick={onYes} aria-label={`Sí, conversar con ${first}`} title="¡Sí, conversemos!" autoFocus>✓</button>
+      </div>
+      <div className="tm-hint">✕ descartar · ✓ conversar</div>
+    </div>
+  );
+}
+
+// Alguien te aceptó: ves su foto y decides
+function AcceptModal({ person, me, onAccept, onReject, onClose }) {
+  const compat = compatOf(me, person);
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="tm-box">
+        <RevealCard target={person} eyebrow={`Quiere conversar contigo 💌${compat != null ? ` · ${compat}%` : ""}`} onYes={onAccept} onNo={onReject}/>
+        <div style={{textAlign:"center",marginTop:8}}>
+          <button className="tour-skip" onClick={onClose}>Decidir después</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Test de afinidad (preguntas extra con alguien cercano) ──────────────────
-function AffinityTestModal({ me, target, onSaveMe, onClose, onConnect }) {
+function AffinityTestModal({ me, target, onSaveMe, onClose, onConnect, onReject }) {
   const [mine, setMine]   = useState(me);
   const [extra, setExtra] = useState(me.extra_answers || {});
   const [done, setDone]   = useState(0);
+  const [asked, setAsked] = useState([]);   // preguntas ya hechas en ESTA sesión
 
-  const compat     = getCompatibility(mine, target) ?? 0;
+  const compat     = compatOf(mine, target) ?? 0;
   const group      = getPairGroup(mine, target);
-  const question   = nextExtraTest(group, Object.keys(extra), mine, target);
-  const compatible = done >= MIN_EXTRA_TESTS && compat >= COMPAT_THRESHOLD;
+  // Primero preguntas que nunca respondiste; si ya respondiste todas, se repiten (sin repetir dentro de la misma sesión)
+  const question   = nextExtraTest(group, Object.keys(extra), mine, target)
+                  ?? nextExtraTest(group, asked, mine, target);
+  const compatible = (done >= MIN_EXTRA_TESTS || !question) && compat >= COMPAT_THRESHOLD;
   const finished   = compatible || done >= MAX_EXTRA_TESTS || !question;
 
   const pick = (opt) => {
     const key = TRAIT_KEY[question.trait];
     const updated = { ...mine, [key]: refineTrait(mine[key], opt.score) };
     const nextExtra = { ...extra, [question.id]: opt.label };
-    setMine(updated); setExtra(nextExtra); setDone(d => d + 1);
+    setMine(updated); setExtra(nextExtra); setDone(d => d + 1); setAsked(a => [...a, question.id]);
     onSaveMe(updated, nextExtra);
   };
 
   return (
-    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div className="overlay" onClick={e => e.target === e.currentTarget && !(finished && compatible) && onClose()}>
       <div className="tm-box">
-        <button className="tm-close" onClick={onClose} aria-label="Cerrar">✕</button>
+        {!(finished && compatible) && <button className="tm-close" onClick={onClose} aria-label="Cerrar">✕</button>}
 
         <div className="tm-compat">
           <div className="tm-compat-top"><span>Afinidad con alguien cerca de ti</span><span>{compat}%</span></div>
@@ -814,11 +1065,7 @@ function AffinityTestModal({ me, target, onSaveMe, onClose, onConnect }) {
         )}
 
         {finished && compatible && (
-          <div className="tm-result">
-            <h3>¡Hay afinidad! 🌿</h3>
-            <p>Con tus respuestas, la compatibilidad con esta persona llegó a {compat}%. Ya pueden empezar a conversar.</p>
-            <button className="btn-pill" onClick={onConnect}>Conectar →</button>
-          </div>
+          <RevealCard target={target} eyebrow={`¡Hay afinidad! 🌿 ${compat}%`} onYes={onConnect} onNo={onReject}/>
         )}
 
         {finished && !compatible && (
@@ -1196,6 +1443,16 @@ export default function App() {
   // Mis datos para compatibilidad: edad + scores OCEAN + tests extra respondidos
   const [me, setMe] = useState({ age:null, ocean_o:50, ocean_c:50, ocean_e:50, ocean_a:50, ocean_n:50, extra_answers:{} });
   const [testTarget, setTestTarget] = useState(null);
+  const [testSource, setTestSource] = useState("card");        // de dónde vino: "card" | "roulette"
+  const [rouletteKey, setRouletteKey] = useState(0);            // al descartar, la ruleta se reinicia
+  const [skippedIds, setSkippedIds] = useState([]);
+  const [rouletteNotice, setRouletteNotice] = useState("");
+  // Match mutuo: quién te aceptó, a quién esperas y a quién ocultar
+  const [social, setSocial] = useState({ incoming:[], waiting:[], hiddenIds:[] });
+  const [acceptTarget, setAcceptTarget] = useState(null);
+  const [testPending, setTestPending] = useState(null);   // persona de ejemplo que "está por aceptar"
+  const [toast, setToast] = useState("");
+  const testTimer = useRef(null);
   const [showTour, setShowTour] = useState(false);
   // Tema: lo guardado por la persona o, si no hay, el del sistema
   const [theme, setTheme] = useState(() => {
@@ -1351,6 +1608,10 @@ export default function App() {
     setProfile({ nickname:"", bio:"", interests:[], photo:null });
     setMe({ age:null, ocean_o:50, ocean_c:50, ocean_e:50, ocean_a:50, ocean_n:50, extra_answers:{} });
     setTestTarget(null);
+    setAcceptTarget(null);
+    setTestPending(null);
+    setToast("");
+    clearTimeout(testTimer.current);
     setNearbyProfiles([]);
     setScreen("landing");
   };
@@ -1491,27 +1752,71 @@ export default function App() {
     } catch(e) { console.error("handleRespondProposal:", e); }
   };
 
+  const refreshSocial = async () => {
+    if (!authUser) return;
+    try { setSocial(await getSocialState(authUser.id)); } catch (e) { console.error("refreshSocial:", e); }
+  };
+
+  // Carga el estado social y escucha en tiempo real matches nuevos y personas que te aceptan
+  useEffect(() => {
+    if (!authUser?.id) { setSocial({ incoming:[], waiting:[], hiddenIds:[] }); return; }
+    const uid = authUser.id;
+    const reload = () => getSocialState(uid).then(setSocial).catch(e => console.error("social:", e));
+    reload();
+    const ch = subscribeToSocial(uid, {
+      onMatch: () => { loadMatches(uid); reload(); setToast("¡Hay match! 🌿 Ya pueden conversar"); },
+      onIncomingLike: () => { reload(); setToast("Alguien quiere conversar contigo 💌"); },
+    });
+    return () => { if (ch) supabase.removeChannel(ch); };
+  }, [authUser?.id]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(""), 5000);
+    return () => clearTimeout(t);
+  }, [toast]);
+  useEffect(() => () => clearTimeout(testTimer.current), []);
+
+  // ✕ : descartar (se guarda para no volver a mostrarla)
+  const rejectPerson = async (person) => {
+    if (!authUser || typeof person.id === "number") return;
+    try { await sendPass(authUser.id, person.id); } catch (e) { console.error("sendPass:", e); }
+    refreshSocial();
+  };
+
   const startConvo = async (otherProfile) => {
     setPanel("conversations");
-    // Tarjetas de ejemplo (id numérico) o sin sesión: abrir su chat directamente
-    if (!authUser || typeof otherProfile.id === "number") { openConvo(otherProfile); return; }
+    const nm = otherProfile.nickname || otherProfile.name || "esa persona";
+
+    // Persona de ejemplo / prueba: se simula que también te acepta a los pocos segundos
+    if (!authUser || typeof otherProfile.id === "number") {
+      setActiveConvo(null);
+      setTestPending(otherProfile);
+      setToast(`Esperando a que ${nm} también acepte…`);
+      clearTimeout(testTimer.current);
+      testTimer.current = setTimeout(() => {
+        setTestPending(null);
+        setToast(`¡Match con ${nm}! ${otherProfile.avatar || "🌿"} Ya pueden conversar`);
+        setPanel("conversations");
+        openConvo(otherProfile);
+      }, TEST_AUTO_ACCEPT_MS);
+      return;
+    }
+
     try {
       const { matched } = await sendLike(authUser.id, otherProfile.id);
       if (matched) {
-        // Mutuo: abrir el chat de ese match directamente, sin pasar por la lista
+        // Las dos personas aceptaron: se abre el chat directamente
         const list = await loadMatches(authUser.id);
         const created = list.find(x => x.profile?.id === otherProfile.id);
         if (created) await openConvo(created);
       } else {
-        const fakeConvo = {
-          id: otherProfile.id, matchId: null,
-          name: otherProfile.nickname || otherProfile.name || "Kindred",
-          avatar: (otherProfile.nickname || otherProfile.name || "K")[0].toUpperCase(),
-          bg: "#EEEDFE", depth: "Like enviado ✓", msgs: [],
-        };
-        setActiveConvo(fakeConvo);
+        // Solo aceptaste tú: no hay chat hasta que la otra persona también acepte
+        setActiveConvo(null);
+        setToast(`Listo ✓ Cuando ${nm} también acepte, se abre el chat`);
       }
-    } catch(e) { console.error("startConvo:", e); }
+      refreshSocial();
+    } catch(e) { console.error("startConvo:", e); setToast("No pudimos enviar tu ✓. Intenta de nuevo."); }
   };
 
   // Onboarding
@@ -1524,15 +1829,20 @@ export default function App() {
 
   const convoList   = SHOW_TEST_MATCH ? [TEST_MATCH, ...realMatches] : realMatches;
   const displayName = profile.nickname || userForm.name || "Tú";
-  const showList    = nearbyProfiles.length > 0 ? nearbyProfiles : DEMO_MATCHES;
+  const fran        = SHOW_FRAN ? makeFran(me) : null;
+  const hiddenSet   = new Set(social.hiddenIds);
+  const visibleNearby = nearbyProfiles.filter(p => !hiddenSet.has(p.id));
+  const showList    = [...(fran ? [fran] : []), ...(nearbyProfiles.length > 0 ? visibleNearby : DEMO_MATCHES)];
+  const pendingList = [...social.waiting, ...(testPending ? [testPending] : [])];
   const isRealData  = nearbyProfiles.length > 0;
   const ageNum      = Number(userForm.age);
   const ageValid    = Number.isInteger(ageNum) && ageNum >= 18 && ageNum <= 99;
 
   // Al dar "Conectar" siempre salen tests para avanzar en la compatibilidad.
   // Solo se conecta directo si no hay datos de personalidad de la otra persona.
-  const handleConnect = (m) => {
-    if (getCompatibility(me, m) === null) { startConvo(m); return; }
+  const handleConnect = (m, source = "card") => {
+    if (compatOf(me, m) === null) { startConvo(m); return; }
+    setTestSource(source);
     setTestTarget(m);
   };
 
@@ -1546,6 +1856,16 @@ export default function App() {
       {showTour && screen === "dashboard" && (
         <WelcomeTour name={userForm.name} theme={theme} onToggleTheme={toggleTheme} onClose={() => setShowTour(false)} />
       )}
+      {acceptTarget && (
+        <AcceptModal
+          person={acceptTarget}
+          me={me}
+          onClose={() => setAcceptTarget(null)}
+          onAccept={() => { const p = acceptTarget; setAcceptTarget(null); startConvo(p); }}
+          onReject={() => { const p = acceptTarget; setAcceptTarget(null); rejectPerson(p); }}
+        />
+      )}
+      {toast && <div className="toast-wrap"><div className="toast" role="status">{toast}</div></div>}
       {testTarget && (
         <AffinityTestModal
           me={me}
@@ -1553,6 +1873,19 @@ export default function App() {
           onSaveMe={handleSaveMe}
           onClose={() => setTestTarget(null)}
           onConnect={() => { const t = testTarget; setTestTarget(null); startConvo(t); }}
+          onReject={() => {
+            const t = testTarget;
+            setTestTarget(null);
+            rejectPerson(t);
+            // Si venía de la ruleta: se descarta a esa persona y se vuelve a tirar la ruleta
+            if (testSource === "roulette") {
+              setSkippedIds(ids => [...ids, t.id]);
+              setRouletteNotice("Sin problema 🌿 Gira otra vez para conocer a alguien más.");
+              setRouletteKey(k => k + 1);
+              setPanel("conversations");
+              setActiveConvo(null);
+            }
+          }}
         />
       )}
 
@@ -1743,7 +2076,7 @@ export default function App() {
               { id:"test",          icon:"🧠", label:"Test",           badge: 0 },
               { id:"profile",       icon:"👤", label:"Tú",             badge: 0 },
             ].map(item => (
-              <div key={item.id} className={`nav-item ${panel===item.id?"active":""}`} onClick={() => setPanel(item.id)}>
+              <div key={item.id} className={`nav-item ${panel===item.id?"active":""}`} onClick={() => { setPanel(item.id); setActiveConvo(null); }}>
                 <span className="icon">{item.icon}</span>
                 {item.label}
                 {item.badge > 0 && <span className="nav-badge">{item.badge}</span>}
@@ -1785,7 +2118,7 @@ export default function App() {
           </nav>
 
           {/* MAIN */}
-          <div className="main">
+          <div className={`main ${panel === "conversations" ? "main-fit" : ""}`}>
 
             {/* KINDREDS */}
             {panel === "kindreds" && (
@@ -1828,7 +2161,7 @@ export default function App() {
                         </div>
                       )}
                       {(() => {
-                        const compat = getCompatibility(me, m) ?? m.compat;
+                        const compat = compatOf(me, m) ?? m.compat;
                         if (compat == null) return null;
                         return (
                           <>
@@ -1870,7 +2203,48 @@ export default function App() {
                       <h3>Activas</h3>
                       <p>{convoList.length} {convoList.length === 1 ? "conexión" : "conexiones"}</p>
                     </div>
+                    <div className={`convo-item rl-entry ${!activeConvo ? "active" : ""}`} onClick={() => setActiveConvo(null)}>
+                      <div className="ci-avatar" style={{background:"rgba(193,122,90,.14)"}}>🎡</div>
+                      <div className="ci-info">
+                        <div className="ci-name">Ruleta Kindred</div>
+                        <div className="ci-last">Gira y conecta con alguien afín</div>
+                      </div>
+                      <div className="ci-meta"><span className="depth-tag">Juego</span></div>
+                    </div>
                     <div className="convo-items">
+                      {social.incoming.length > 0 && (
+                        <>
+                          <div className="cl-section">Te aceptaron 💌</div>
+                          {social.incoming.map(p => (
+                            <div key={p.id} className="convo-item" onClick={() => setAcceptTarget(p)}>
+                              <div className="ci-avatar" style={{background:"rgba(193,122,90,.14)"}}>💌</div>
+                              <div className="ci-info">
+                                <div className="ci-name">Alguien quiere conversar</div>
+                                <div className="ci-last">Toca para ver quién es</div>
+                              </div>
+                              <div className="ci-meta"><span className="depth-tag">Nuevo</span></div>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                      {pendingList.length > 0 && (
+                        <>
+                          <div className="cl-section">Esperando respuesta ⏳</div>
+                          {pendingList.map(p => (
+                            <div key={p.id} className="convo-item cl-pending">
+                              <div className="ci-avatar" style={{background:p.bg || "rgba(193,122,90,.14)"}}>
+                                {p.avatar_url
+                                  ? <img src={p.avatar_url} alt="" style={{width:"100%",height:"100%",borderRadius:"50%",objectFit:"cover"}}/>
+                                  : (p.avatar || (p.nickname || p.name || "K")[0].toUpperCase())}
+                              </div>
+                              <div className="ci-info">
+                                <div className="ci-name">{p.nickname || p.name || "Kindred"}</div>
+                                <div className="ci-last">Cuando también acepte, se abre el chat</div>
+                              </div>
+                            </div>
+                          ))}
+                        </>
+                      )}
                       {convoList.length === 0 && (
                         <div style={{padding:"1.5rem 1rem",textAlign:"center",color:"var(--soft)",fontSize:13}}>
                           Aún no tienes matches.<br/>Inicia una conversación desde Kindreds.
@@ -1892,12 +2266,19 @@ export default function App() {
                   </div>
 
                   {/* Desktop inline chat */}
-                  <div className="chat-panel" style={{display: activeConvo ? "flex" : "flex"}}>
+                  <div className={`chat-panel ${!activeConvo ? "rl-pane" : ""}`} style={{display: activeConvo ? "flex" : "flex"}}>
                     {!activeConvo ? (
-                      <div className="empty-chat">
-                        <span>💬</span>
-                        <p>Selecciona una conversación para empezar a conectar de verdad.</p>
-                      </div>
+                      <KindredRoulette
+                        key={rouletteKey}
+                        excludeIds={skippedIds}
+                        initialNotice={rouletteNotice}
+                        onNoticeShown={() => setRouletteNotice("")}
+                        candidates={[...(fran ? [fran] : []), ...(isRealData ? visibleNearby : DEMO_MATCHES)]}
+                        testMode={SHOW_FRAN}
+                        me={me}
+                        onConnect={handleConnect}
+                        onGoTest={() => setPanel("test")}
+                      />
                     ) : (
                       <>
                         <div className="chat-hdr" style={{display:"none"}} id="desktop-chat-hdr-placeholder"/>

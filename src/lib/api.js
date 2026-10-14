@@ -102,28 +102,70 @@ export async function getNearbyProfiles(userId, lat, lng, radiusKm = 50) {
 
 // ─── MATCH / LIKE ────────────────────────────────────────────────────────────
 
+// ─── MATCH MUTUO ─────────────────────────────────────────────────────────────
+// Tu ✓ guarda un "like". El match lo crea un trigger en la base de datos solo cuando
+// la otra persona también te aceptó (ver kindred_match_mutuo.sql).
 export async function sendLike(fromId, toId) {
   const { error } = await supabase
     .from('likes')
-    .upsert({ from_id: fromId, to_id: toId })
+    .upsert({ from_id: fromId, to_id: toId }, { onConflict: 'from_id,to_id', ignoreDuplicates: true })
   if (error) throw error
 
-  // ¿Hay like mutuo? → crear match
-  const { data: mutual } = await supabase
-    .from('likes')
+  const { data, error: mErr } = await supabase
+    .from('matches')
     .select('id')
-    .eq('from_id', toId)
-    .eq('to_id', fromId)
-    .single()
+    .or(`and(user_a.eq.${fromId},user_b.eq.${toId}),and(user_a.eq.${toId},user_b.eq.${fromId})`)
+    .limit(1)
+  if (mErr) throw mErr
+  const match = data?.[0] ?? null
+  return { matched: !!match, matchId: match?.id ?? null }
+}
 
-  if (mutual) {
-    await supabase.from('matches').upsert({
-      user_a: fromId < toId ? fromId : toId,
-      user_b: fromId < toId ? toId : fromId,
-    })
-    return { matched: true }
-  }
-  return { matched: false }
+// ✕ : descartar a alguien para no volver a verlo
+export async function sendPass(fromId, toId) {
+  const { error } = await supabase
+    .from('passes')
+    .upsert({ from_id: fromId, to_id: toId }, { onConflict: 'from_id,to_id', ignoreDuplicates: true })
+  if (error) throw error
+}
+
+// Estado social: quién te aceptó (y falta responder), a quién esperas y a quién ocultar
+export async function getSocialState(userId) {
+  const [recv, sent, passes, matches] = await Promise.all([
+    supabase.from('likes').select('from_id, profile:profiles!likes_from_id_fkey(*)').eq('to_id', userId),
+    supabase.from('likes').select('to_id, profile:profiles!likes_to_id_fkey(*)').eq('from_id', userId),
+    supabase.from('passes').select('to_id').eq('from_id', userId),
+    supabase.from('matches').select('user_a, user_b').or(`user_a.eq.${userId},user_b.eq.${userId}`),
+  ])
+  if (recv.error)    throw recv.error
+  if (sent.error)    throw sent.error
+  if (matches.error) throw matches.error
+  const passedIds  = passes.error ? [] : (passes.data || []).map(x => x.to_id)   // si aún no existe la tabla, no rompe
+  const matchedIds = new Set((matches.data || []).map(m => (m.user_a === userId ? m.user_b : m.user_a)))
+  const sentIds    = (sent.data || []).map(x => x.to_id)
+
+  const incoming = (recv.data || [])
+    .filter(r => !matchedIds.has(r.from_id) && !passedIds.includes(r.from_id) && !sentIds.includes(r.from_id))
+    .map(r => r.profile).filter(Boolean)
+  const waiting = (sent.data || [])
+    .filter(s => !matchedIds.has(s.to_id))
+    .map(s => s.profile).filter(Boolean)
+
+  return { incoming, waiting, hiddenIds: [...matchedIds, ...passedIds, ...sentIds] }
+}
+
+// Tiempo real: nuevo match o alguien que te acepta
+export function subscribeToSocial(userId, { onMatch, onIncomingLike } = {}) {
+  const ch = supabase.channel(`social:${userId}`)
+  ;['user_a', 'user_b'].forEach(col => {
+    ch.on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'matches', filter: `${col}=eq.${userId}` },
+      payload => onMatch?.(payload.new))
+  })
+  ch.on('postgres_changes',
+    { event: 'INSERT', schema: 'public', table: 'likes', filter: `to_id=eq.${userId}` },
+    payload => onIncomingLike?.(payload.new))
+  return ch.subscribe()
 }
 
 export async function getMatches(userId) {
